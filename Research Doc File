@@ -1,0 +1,568 @@
+# Bheem — AI Performance Coach for Founders
+### Built by Abhi Ballabh, Co-founder & CEO, ExtraaEdge
+### Powered by Whoop API + Claude Code (claude-sonnet-4-6)
+
+---
+
+## YC BRIEF — For Evaluators
+
+**What is Bheem?**
+Bheem is a personal AI performance coach built inside Claude Code that reads a founder's Whoop biometric data every day and delivers one actionable brief: your body's state, what it means for your decisions today, and the 3 highest-leverage things to do in the next 24–48 hours.
+
+**The insight behind it:**
+A founder making a term sheet decision at 36% recovery and 36ms HRV is not the same person as the same founder at 74% recovery and 50ms HRV. The delta is measurable. The cost is real. But almost no one is connecting real-time biometric data to the quality of executive decisions.
+
+**What makes it different from a Whoop app:**
+The Whoop app tells you your score. Bheem tells you what that score means for your specific life as a CEO — which decisions to defer, when to schedule your hardest conversation, and whether your gut feel today is trustworthy. It knows you're fundraising. It knows you travel. It adjusts the advice accordingly.
+
+**Stack:**
+- Whoop Developer API (OAuth2)
+- Claude Code (Anthropic claude-sonnet-4-6)
+- Claude Code Custom Skills system (`~/.claude/skills/Bheem/`)
+- macOS shell for token management and API calls
+- No database. No app. Runs in your terminal in 30 seconds.
+
+**Who can use it:**
+Any founder or executive with a Whoop device and a Claude Code subscription. Plug in your Whoop API credentials. Run `/Bheem`. Get your brief.
+
+**Built:** April 2026 | **Status:** Daily use by the author | **Open to:** Anyone with Whoop + Claude Code
+
+---
+
+## 1. THE PROBLEM
+
+Most founders track zero health metrics in any structured way. The ones who do — Whoop, Garmin, Oura — look at the score, feel good or bad about it, and move on. The data sits in an app and never connects to the decisions that actually matter.
+
+Here is what actually happens when a founder ignores biometric signals:
+
+- **HRV declining for 5 days** → pattern recognition is compromised → you agree to terms you'd normally push back on
+- **Post-travel RHR elevated** → cortisol is still high → you read a difficult team situation as worse than it is and overreact
+- **Sleep debt accumulated** → emotional bandwidth is reduced → you're irritable in the investor meeting that determines your raise
+- **Recovery in RED** → prefrontal cortex function is measurably impaired → you make a hiring decision you spend 6 months undoing
+
+None of this is theory. It is exercise physiology and neuroscience with decades of peer-reviewed backing. The problem is the translation layer: **turning biometric data into decisions a CEO would actually act on.**
+
+That is what Bheem does.
+
+---
+
+## 2. WHAT BHEEM DOES
+
+Bheem is a Claude Code skill (`/Bheem`) that:
+
+1. **Reads** your last 7 days of Whoop data via the Whoop Developer API (recovery, sleep, strain, HRV, RHR, SpO2, skin temp)
+2. **Computes** your current state (🟢 PEAK / 🟡 MANAGE / 🔴 PROTECT) against your personal 7-day baseline
+3. **Detects** travel fatigue using a composite scoring formula across 5 biometric signals
+4. **Generates** a daily brief with context specific to your life as a founder/CEO
+5. **Prescribes** exactly 3 actions — one for your body, one for your sleep, one for your work decisions (the CEO Action)
+
+The CEO Action is the core innovation. It is not a fitness tip. It is a direct connection between your biometric state and the specific decisions, conversations, and tasks that matter to you that day.
+
+**Example CEO Actions by state:**
+
+| State | Example CEO Action |
+|---|---|
+| 🟢 GREEN (74%, HRV 50ms) | "Schedule your hardest negotiation today — you're at peak. Don't defer it to a worse day." |
+| 🟡 YELLOW (53%, HRV 45ms) | "Route-work only. No irreversible calls. Push the term sheet review to tomorrow." |
+| 🔴 RED (36%, HRV 36ms) | "Do not advance fundraising conversations today. Your pattern recognition is measurably compromised. Buy 48 hours." |
+
+---
+
+## 3. THE RESEARCH — SCIENCE BEHIND EVERY METRIC
+
+### 3.1 HRV (Heart Rate Variability)
+**What it measures:** The variation in time between consecutive heartbeats, measured in milliseconds (rmssd method).
+
+**Why it matters for founders:**
+HRV is the single most validated non-invasive marker of autonomic nervous system function. High HRV = the parasympathetic (rest/recover) system is dominant. Low HRV = sympathetic (fight/flight/stress) dominance.
+
+**The cognitive connection:**
+- High HRV correlates with better working memory, faster decision-making, higher emotional regulation, and stronger creativity (Thayer et al., 2009; Hansen et al., 2004)
+- Low HRV correlates with impaired executive function, reduced cognitive flexibility, and higher emotional reactivity
+- A 20% drop in HRV from baseline is associated with measurable degradation in complex reasoning tasks
+
+**Key insight for founders:** HRV doesn't lie about stress. You can feel fine and have an HRV 25% below baseline. That gap between how you feel and how you're actually performing is exactly where bad decisions live.
+
+**Bheem's use:**
+- Tracks 7-day rolling average as your personal baseline
+- Flags when 3+ consecutive days below baseline (stress accumulation alert)
+- A 5-day declining trend = FOUNDER FLAG (this happened to the author on May 1, 2026 — HRV dropped from 50ms to 36ms over 5 days during active fundraising)
+
+**Research references:**
+- Thayer JF et al. (2009). Heart rate variability, prefrontal neural function, and cognitive performance. *Neuropsychobiology*
+- Kim HG et al. (2018). Stress and Heart Rate Variability: A Meta-Analysis. *Psychiatry Investigation*
+
+---
+
+### 3.2 Resting Heart Rate (RHR)
+**What it measures:** Average heart rate during the deepest sleep window, measured in bpm.
+
+**Why it matters:**
+RHR is a lagging indicator of overall physiological load. It rises when the body is under stress — whether from training, illness, travel, or psychological pressure. Unlike HRV (which is sensitive and fast-moving), RHR is slower and more reliable as a trend signal.
+
+**The founder application:**
+- RHR +5bpm above baseline = body is carrying uncleared load
+- RHR +8bpm above baseline = likely illness, heavy travel fatigue, or severely disrupted sleep
+- Trending downward over weeks = fitness improving, recovery improving, stress reducing
+
+**Bheem's use:**
+- Tracks against 7-day average
+- Used in Travel Fatigue Score (see Section 6)
+- A jump from 53bpm (baseline low) to 60bpm (+7bpm) over 3 days is a significant signal
+
+---
+
+### 3.3 Recovery Score
+**What it measures:** Whoop's proprietary composite score (0–100%) computed from HRV, RHR, sleep performance, and respiratory rate. Scored against your personal baseline, not a population average.
+
+**Why it matters:**
+This is the most actionable single number for daily decisions. It accounts for individual variation — a 60% for one person is not the same as 60% for another.
+
+**The founder framework:**
+
+| Score | State | Decision Rule |
+|---|---|---|
+| 67–100% | 🟢 PEAK | Full cognitive + physical capacity. Use it for the hardest work. |
+| 34–66% | 🟡 MANAGE | Functional, not optimal. Routine work fine. Protect irreversible decisions. |
+| 0–33% | 🔴 PROTECT | Genuine cognitive impairment. Emotional bandwidth reduced. High cost of major decisions. |
+
+**Critical research finding:**
+Sleep deprivation studies (Walker, 2017) show that cognitively impaired subjects consistently *overestimate* their own performance. A founder at 32% recovery does not feel as bad as they are performing. This is the most dangerous gap in self-assessment.
+
+**Bheem's use:**
+- Primary state classifier
+- Determines whether the action window is 24h (green) or 48h (yellow/red)
+- At 36% (author's May 1 reading), Bheem explicitly deferred fundraising conversations
+
+---
+
+### 3.4 Sleep Architecture
+**What it measures:** Total sleep duration, efficiency %, performance %, consistency %, slow-wave sleep (SWS), REM, light sleep, disturbance count.
+
+**Why every metric matters:**
+
+| Metric | What it means | Founder relevance |
+|---|---|---|
+| **Duration** | Total actual sleep (not time in bed) | Sleep debt accumulates daily and clears slowly. 2 bad nights = 3-4 days of degraded performance at 35. |
+| **Efficiency %** | Time asleep / time in bed | Below 85% = sleep quality problem, not just quantity |
+| **Performance %** | Actual sleep vs Whoop's calculated need | Below 80% = adding to sleep debt |
+| **Consistency %** | How regular your sleep/wake times are | Below 70% = circadian rhythm drift. The body doesn't know when to sleep, which degrades all sleep quality. |
+| **SWS (Deep)** | Slow-wave sleep in minutes | Physical repair, memory consolidation, immune function. At 35, SWS naturally decreases. Disruptions cost more. |
+| **REM** | REM sleep in minutes | Emotional processing, creativity, complex reasoning. Low REM → worse at reading people and novel problem-solving. |
+| **Disturbances** | Arousals during sleep | 4+ disturbances = fragmented architecture, even if total hours look okay |
+
+**The age-35 factor:**
+At 35, deep sleep (SWS) production naturally declines relative to age 25. This means:
+- Sleep disruptions cost more than they did 5 years ago
+- Sleep debt accumulates harder and clears slower
+- Two consecutive bad nights at 35 = 3-4 days of measurably suboptimal cognitive performance
+
+**Bheem's formula for sleep need:**
+Whoop calculates this individually: `baseline_need + sleep_debt_deficit + recent_strain_need - nap_credit`
+
+The author's baseline sleep need: ~7h 32min. Recent debt was adding ~1hr to this need daily.
+
+---
+
+### 3.5 SpO2 (Blood Oxygen Saturation)
+**What it measures:** % of hemoglobin saturated with oxygen during sleep.
+
+**Normal range:** 95–100%
+**Bheem's flag threshold:** Below 95%
+
+**Why it matters for founders:**
+SpO2 below 95% during sleep can indicate:
+- Sleep apnea events (partial airway obstruction)
+- Environmental factors (altitude, poor ventilation)
+- Illness or inflammatory response
+- Travel-related disruption (pressurized cabin exposure, hotel AC environments)
+
+**Cognitive connection:**
+Even mild intermittent hypoxia (low oxygen) during sleep degrades memory consolidation and executive function the following day. Repeated nights below 95% are associated with increased cardiovascular risk.
+
+**In the author's May 1 data:** SpO2 at 94.0% — below threshold, second consecutive night. Combined with the HRV decline and RHR elevation, this was part of the travel/stress accumulation pattern.
+
+---
+
+### 3.6 Skin Temperature
+**What it measures:** Wrist skin temperature during sleep (°C), compared to your personal baseline.
+
+**Bheem's flag threshold:** +0.5°C or more above personal average
+
+**Why it matters:**
+Skin temperature elevation during sleep is one of the earliest markers of:
+- Inflammatory response (pre-illness or illness onset)
+- Travel fatigue and circadian disruption
+- Overtraining response
+- Hormonal fluctuation
+
+**Founder application:** A skin temp spike of +0.4–0.6°C, combined with HRV drop and RHR rise, is a reliable early warning system for "something is wrong" before you feel sick. Catching it 24–48 hours early allows you to protect decisions before performance degrades visibly.
+
+---
+
+### 3.7 Strain
+**What it measures:** Cardiovascular load accumulated during the day, scored 0–21.
+
+**The strain scale:**
+| Score | Level | Description |
+|---|---|---|
+| 0–9 | Light | Sedentary to light activity |
+| 10–13 | Moderate | Moderate workout, active day |
+| 14–17 | Strenuous | Hard training session |
+| 18–21 | All Out | Race, peak effort day |
+
+**For founders:**
+Strain tracks physical load, not cognitive load. A founder who sits in back-to-back meetings for 10 hours may have strain of 4–6 despite being mentally exhausted. This is important context: HRV and recovery crashes that happen without corresponding strain elevation = cognitive/emotional stress, not physical overtraining.
+
+**Author's observation:** During the May 1 brief, strain for the preceding week was consistently 4–8 (low-moderate). The HRV crash was therefore clearly stress/cognitive in origin, not from physical training. This changed the prescription: rest and sleep, not recovery from exercise.
+
+---
+
+## 4. THE CEO HEALTH FRAMEWORK
+
+Bheem is built around a single core hypothesis:
+
+> **The quality of a founder's decisions is a direct function of their physiological state. Biometric data makes this state measurable. Measurable means actionable.**
+
+### The 4 CEO Health Questions Bheem Answers Every Day:
+
+**1. What state am I in?** (GREEN / YELLOW / RED)
+→ Sets the operating mode for the day
+
+**2. Is this a decision-making day or an execution day?**
+→ On green days: tackle the hard, irreversible, high-stakes work
+→ On yellow/red days: protect the decisions, do the routine work
+
+**3. Is there a specific risk I need to protect against today?**
+→ Travel fatigue, fundraising pressure, team conflict, major announcement
+→ Bheem matches the physiological state to the real-world context
+
+**4. What is the one structural change that would most improve next week?**
+→ Sleep timing, hydration, strain management, morning routine
+
+### Why 3 Actions, Never More:
+
+Founders in yellow or red state have reduced executive function. A list of 10 health recommendations is worse than no recommendations — it creates choice paralysis and guilt. Bheem gives exactly 3. Always. The 3 are sequenced by leverage:
+
+1. **BODY** — The physical action with highest ROI on recovery
+2. **SLEEP** — The specific sleep change for tonight (time, temperature, behaviour)
+3. **CEO** — The decision-level action connecting body state to work state
+
+The CEO action is the one that earns trust. It's what makes Bheem a coach rather than a dashboard.
+
+---
+
+## 5. TRAVEL FATIGUE SYSTEM
+
+Frequent travel is one of the most underestimated performance risks for founders. A 3-day domestic trip with 2 late nights and 2 hotel sleeps can leave a founder running at 60–70% capacity for 4–5 days after they return — without ever knowing it.
+
+### Detection Markers:
+
+| Signal | Threshold | Why |
+|---|---|---|
+| HRV drop | >15% below 7-day baseline | Circadian disruption suppresses parasympathetic activity |
+| RHR elevation | +5–8 bpm above baseline for 2+ days | Body is clearing travel stress load |
+| Sleep efficiency | <75% on travel nights | Unfamiliar environment, noise, light disruption |
+| Recovery crash | Green→Yellow or Yellow→Red within 48 hrs | Compound effect of travel stressors |
+| Skin temp deviation | +0.5°C or more | Inflammatory response to travel, food, environment |
+| SpO2 | Below 95% on travel nights | Cabin pressure, air quality, disrupted breathing |
+
+### Travel Fatigue Score Formula:
+
+```
+Score = (HRV % below baseline × 0.4)
+      + (RHR % above baseline × 0.3)
+      + (sleep efficiency delta × 0.2)
+      + (recovery score delta × 0.1)
+
+0–30:   Mild     → 1-day recovery protocol
+31–60:  Moderate → 2–3 day protocol
+61+:    High     → Full recovery before any output push
+```
+
+### Recovery Protocol (in this exact order):
+
+1. **Sleep first** — Earlier bedtime, no screens 60min before, dark and cool room (<23°C)
+2. **Morning light** — Sunlight within 30 minutes of waking. Resets the suprachiasmatic nucleus. The single fastest circadian anchor.
+3. **Hydration** — 500ml water immediately on waking. No alcohol for 48 hours post-travel.
+4. **Strain cap** — Keep below 10 regardless of recovery score for 24 hours
+5. **Decision deferral** — If travel fatigue score >40, defer all high-stakes irreversible decisions by 48 hours
+
+---
+
+## 6. REAL DATA EXAMPLE — Author's May 1, 2026 Brief
+
+This is an actual output from a live session, using real Whoop data:
+
+```
+BHEEM'S BRIEF — Friday, 1 May 2026
+
+STATE: 🟡 MANAGE (low yellow — 2 points from RED)
+
+RECOVERY:   36%      ↓ vs 7-day avg (59%)  —  23pts below
+HRV:        36ms     ↓ vs 7-day avg (45ms) —  20% below baseline
+RHR:        60bpm    ↑ vs 7-day avg (57bpm)—  +3bpm elevated
+SLEEP:      6h 44m | 83% performance | 92% efficiency | 4 disturbances
+STRAIN:     6.7 / 21 (yesterday)
+SpO2:       94.0%   ⚠ below 95% threshold
+```
+
+**7-day trend (what the data was actually showing):**
+
+| Date | Recovery | HRV (ms) | RHR |
+|------|----------|----------|-----|
+| Apr 25 | 51% | 43.8 | 56 |
+| Apr 26 | 59% | 46.0 | 60 |
+| Apr 27 | 74% | 50.1 | 54 |
+| Apr 28 | 67% | 48.1 | 55 |
+| Apr 29 | 73% | 47.7 | 53 |
+| Apr 30 | 53% | 45.0 | 58 |
+| May 1  | 36% | 36.0 | 60 |
+
+**What the data showed:**
+- 5-day HRV decline: 50ms → 36ms (-28%)
+- Recovery crash: 73% → 36% in 3 days (-37 points)
+- RHR rising: 53bpm → 60bpm (+7bpm from low)
+- Strain all week: 4–8 (low — not overtraining)
+- Conclusion: Cognitive/emotional stress load, not physical. Active fundraising period.
+
+**Bheem's CEO Action that day:**
+> "HRV has declined 5 consecutive days and is 20% below your 7-day average. Your pattern recognition, risk calibration, and emotional bandwidth are all measurably reduced right now. Do not advance any fundraising term sheet conversations or make hiring decisions today. Route-work only. Schedule the hard calls for Monday when you've had 48 hours to rebuild."
+
+---
+
+## 7. ARCHITECTURE — HOW IT'S BUILT
+
+### Stack
+
+```
+┌─────────────────────────────────────────────┐
+│              Claude Code Terminal            │
+│         claude-sonnet-4-6 model              │
+└─────────────────────┬───────────────────────┘
+                      │ /Bheem invocation
+                      ▼
+┌─────────────────────────────────────────────┐
+│         ~/.claude/skills/Bheem/SKILL.md      │
+│   (Skill prompt — Coach persona, metrics,    │
+│    scoring logic, output format, research)   │
+└─────────────────────┬───────────────────────┘
+                      │ Bash tool calls
+                      ▼
+┌─────────────────────────────────────────────┐
+│            Whoop Developer API               │
+│    api.prod.whoop.com/developer/v2/          │
+│                                              │
+│  • GET /recovery?limit=7                     │
+│  • GET /activity/sleep?limit=7               │
+│  • GET /v1/cycle?limit=7                     │
+└─────────────────────┬───────────────────────┘
+                      │ JSON response
+                      ▼
+┌─────────────────────────────────────────────┐
+│         ~/.claude/bheem/config.json          │
+│   OAuth2 tokens (access + refresh)           │
+│   Auto-refreshed when expired                │
+└─────────────────────────────────────────────┘
+```
+
+### File Structure
+
+```
+~/.claude/
+├── skills/
+│   └── Bheem/
+│       └── SKILL.md          ← The full coach prompt & logic
+└── bheem/
+    └── config.json           ← Whoop OAuth2 credentials & tokens
+```
+
+### Token Management
+
+Whoop access tokens expire in ~1 hour. Bheem handles this automatically:
+
+1. Attempt API call with stored `access_token`
+2. If `401 Authorization was not valid` returned → trigger refresh
+3. POST to `https://api.prod.whoop.com/oauth/oauth2/token` with `refresh_token`
+4. Write new `access_token` and `refresh_token` to `config.json`
+5. Retry API call
+
+No manual re-authentication needed unless refresh token itself expires (typically 30–60 days).
+
+---
+
+## 8. SETUP GUIDE — ANYONE CAN USE THIS
+
+### Prerequisites
+- A Whoop device (any generation)
+- A Whoop account
+- Claude Code installed (`npm install -g @anthropic-ai/claude-code` or via claude.ai/code)
+- macOS or Linux terminal (Windows via WSL)
+
+### Step 1: Create a Whoop Developer App
+
+1. Go to [developer.whoop.com](https://developer.whoop.com)
+2. Sign in with your Whoop account
+3. Click **Create App**
+4. Set Redirect URI to: `http://localhost:3000/callback`
+5. Select scopes: `read:recovery`, `read:sleep`, `read:cycles`, `offline`
+6. Copy your `client_id` and `client_secret`
+
+### Step 2: Get Your OAuth2 Tokens
+
+Run this in your terminal to start the OAuth flow:
+
+```bash
+# Start a local server to catch the callback
+python3 -m http.server 3000 &
+
+# Open the authorization URL in your browser (replace CLIENT_ID)
+open "https://api.prod.whoop.com/oauth/oauth2/auth?client_id=YOUR_CLIENT_ID&redirect_uri=http://localhost:3000/callback&response_type=code&scope=read:recovery read:sleep read:cycles offline&state=bheem12345"
+```
+
+After authorizing in the browser, copy the `code` parameter from the callback URL, then:
+
+```bash
+curl -X POST "https://api.prod.whoop.com/oauth/oauth2/token" \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=authorization_code" \
+  -d "code=YOUR_CODE_HERE" \
+  -d "client_id=YOUR_CLIENT_ID" \
+  -d "client_secret=YOUR_CLIENT_SECRET" \
+  -d "redirect_uri=http://localhost:3000/callback"
+```
+
+Save the `access_token` and `refresh_token` from the response.
+
+### Step 3: Create Your Config File
+
+```bash
+mkdir -p ~/.claude/bheem
+cat > ~/.claude/bheem/config.json << 'EOF'
+{
+  "client_id": "YOUR_CLIENT_ID",
+  "client_secret": "YOUR_CLIENT_SECRET",
+  "access_token": "YOUR_ACCESS_TOKEN",
+  "refresh_token": "YOUR_REFRESH_TOKEN",
+  "redirect_uri": "http://localhost:3000/callback"
+}
+EOF
+```
+
+### Step 4: Install the Bheem Skill
+
+```bash
+mkdir -p ~/.claude/skills/Bheem
+# Copy SKILL.md from this repo into ~/.claude/skills/Bheem/SKILL.md
+```
+
+### Step 5: Run Your First Brief
+
+Open Claude Code and type:
+```
+/Bheem
+```
+
+That's it. Your first brief runs in under 30 seconds.
+
+### Step 6 (Optional): Personalize Your Profile
+
+Edit the SKILL.md to add your context:
+- Age (affects HRV baseline expectations, sleep architecture, cortisol recovery time)
+- Role and current pressures (fundraising? product sprint? hiring?)
+- Travel frequency
+- Fitness baseline (RHR, typical HRV range)
+
+The more context Bheem has about your life, the more specific the CEO Action becomes.
+
+---
+
+## 9. CUSTOMIZATION GUIDE
+
+### Adjusting the State Thresholds
+
+Default thresholds are based on Whoop's research. You can adjust:
+
+```
+🟢 GREEN:   67–100%  (high readiness)
+🟡 YELLOW:  34–66%   (moderate — manage carefully)
+🔴 RED:     0–33%    (protect mode)
+```
+
+If you're a professional athlete: raise the green threshold to 75+.
+If you're 50+: consider the yellow zone to be 40–70% (HRV baselines decline with age).
+
+### Adding Your Own Context
+
+In the SKILL.md, the profile section accepts any founder-specific context:
+- Industry/market (affects what "high stakes decision" means)
+- Team size (affects what "route work" looks like)
+- Current sprint (fundraising, product launch, team scaling)
+- Travel calendar (so Bheem knows when to expect fatigue markers)
+
+### Extending to Weekly Reviews
+
+Run `/Bheem weekly` for a 7-day trend review with:
+- Week rating (1–10)
+- Pattern of the week (one key insight from 7-day data)
+- Bottleneck (single biggest performance degrader)
+- Win (one positive trend to reinforce)
+- Top 3 structural changes for next week
+
+---
+
+## 10. THE NUMBERS THAT CHANGED HOW I WORK
+
+After 30+ days of daily Bheem briefs, these are the patterns that became undeniable:
+
+**1. HRV predicts my best days 12–18 hours in advance.**
+When I wake up to a brief showing HRV >47ms and recovery >70%, I know before I start work that I have a high-performance day. I schedule my hardest conversations and deepest work on those days. The output quality difference is visible.
+
+**2. Travel costs me 3–4 days, not 1.**
+I used to think I "recovered" from a 2-day trip in a day. The data showed my HRV didn't return to baseline until day 4 post-travel in many cases. I now block no major strategic decisions for 48 hours after any travel longer than one night away.
+
+**3. Sleep consistency matters more than duration.**
+My 72% consistency score (Apr 30 data) was doing more damage than my 6h 44min duration. The body's circadian rhythm is not a metaphor — it is a literal timing system. Disrupting it degrades all sleep quality even when you get enough hours.
+
+**4. The recovery drop always preceded the stress event, not followed it.**
+In 3 out of 4 fundraising-related recovery crashes, my HRV started declining 2–3 days *before* the most stressful call or meeting. The body was sensing load the mind hadn't consciously registered yet.
+
+**5. The CEO Action is the metric that matters most.**
+Every other health app tells me I'm green or yellow. None of them told me "don't sign that term sheet today." Bheem does. That's the entire point.
+
+---
+
+## 11. WHAT'S NEXT — FUTURE ROADMAP
+
+- **Automatic daily delivery**: Cron-triggered brief at wake time, read aloud via `say -v Daniel` on macOS
+- **Calendar integration**: Bheem reads your Google Calendar and adjusts advice based on what's scheduled today ("you have a board meeting at 2pm — you're at 36% recovery, here's how to prepare")
+- **Weekly synthesis**: Auto-generated pattern recognition across 30/60/90 days
+- **Team version**: For leadership teams — each member runs Bheem, weekly aggregate shows team's collective capacity going into key sprints
+- **Whoop → Notion sync**: Daily brief posted to a Notion database for long-term searchable log
+
+---
+
+## 12. THE PHILOSOPHY BEHIND BHEEM
+
+The name is deliberate. Bheem — the second Pandava in the Mahabharata — is powerful, direct, fiercely loyal, and has zero tolerance for self-deception. He sees clearly and tells you what he sees, even when you don't want to hear it.
+
+Most health apps want you to feel good about your data. Bheem wants you to *act correctly* on your data. There is a difference.
+
+A founder at 36% recovery who feels fine is the most dangerous version of that founder. They will trust their instincts when their instincts are compromised. They will move fast when the right answer is to pause. They will read a difficult situation through a cortisol-soaked lens and make a fear-based decision they call a strategic one.
+
+Bheem tells you the truth. What you do with it is your call.
+
+> "The body keeps the score. A founder who reads the score makes better decisions. Better decisions compound."
+
+---
+
+*Built by Abhi Ballabh — Co-founder & CEO, ExtraaEdge / Vidya AI*
+*Ranchi → London → Bengaluru*
+*May 2026*
+
+---
+
+**GitHub / Open Source:** *(coming soon)*
+**Contact:** abhiinbsg@gmail.com
+**LinkedIn:** [linkedin.com/in/abhi-ballabh-extraaedge](https://linkedin.com/in/abhi-ballabh-extraaedge)
+**ExtraaEdge:** [extraaedge.com](https://extraaedge.com)
